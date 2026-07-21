@@ -12,6 +12,38 @@ const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
 
+const VERSION = '1.0.2';
+
+// Handle CLI flags
+if (process.argv.includes('--version') || process.argv.includes('-v')) {
+  console.log(`opencode-register-provider v${VERSION}`);
+  process.exit(0);
+}
+
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  console.log(`
+opencode-register-provider v${VERSION}
+
+Interactive CLI tool to register OpenAI-compatible providers to OpenCode.ai
+
+Usage:
+  opencode-register-provider        Start interactive registration
+  opencode-register-provider -v     Show version
+  opencode-register-provider -h     Show this help
+
+Options:
+  -v, --version    Show version number
+  -h, --help       Show help
+
+Documentation:
+  https://github.com/amarukael/opencode-register-provider
+
+Report issues:
+  https://github.com/amarukael/opencode-register-provider/issues
+`);
+  process.exit(0);
+}
+
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
@@ -128,7 +160,9 @@ async function loadConfig(configPath) {
       })
       .join('\n')
       // Remove multi-line comments
-      .replace(/\/\*[\s\S]*?\*\//g, '');
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      // Fix trailing commas (JSONC support)
+      .replace(/,\s*([}\]])/g, '$1');
     
     return JSON.parse(stripped);
   } catch (err) {

@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-07-21
+
+### Added
+- CLI flags support: `--version`, `-v`, `--help`, `-h`
+- Auto-fix trailing commas in JSONC parser
+- Better JSONC compatibility (supports trailing commas in config files)
+
+### Fixed
+- JSONC parser now properly handles trailing commas
+- Improved error messages for config parsing
+
+## [1.0.1] - 2026-07-21
+
+### Fixed
+- Critical bug: corrected encoding typo from 'utf-0' to 'utf-8' in saveAuthConfig
+- This was causing "Bad control character" JSON parse errors
+
 ## [1.0.0] - 2026-07-21
 
 ### Added
