@@ -1,0 +1,2 @@
+- Run CLI: `node bin/opencode-register-provider`
+- Test CLI: `npm run test` (which executes `node bin/opencode-register-provider --help`)

@@ -1,0 +1,5 @@
+- Language: JavaScript (Node.js)
+- Framework/Runtime: Node.js (>= 14.0.0)
+- Package Manager: npm
+- No external dependencies specified in package.json.
+- Type: CLI executable.

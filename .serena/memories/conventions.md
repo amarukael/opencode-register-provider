@@ -1,0 +1,3 @@
+- Code Style: Standard JavaScript for Node.js environments.
+- executable scripts in `bin` should maintain appropriate unix shebang (`#!/usr/bin/env node`).
+- Keep things lightweight as there are no external dependencies.

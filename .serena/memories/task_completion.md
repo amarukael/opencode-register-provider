@@ -1,0 +1,3 @@
+- Ensure changes don't break the CLI execution by running `npm run test` or `node bin/opencode-register-provider --help`.
+- Update `package.json` version if releasing a new version.
+- Ensure executable permissions remain intact on `bin/opencode-register-provider`.

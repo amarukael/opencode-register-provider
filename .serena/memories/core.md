@@ -1,0 +1,6 @@
+- Top-level source map: The primary source file is located at `bin/opencode-register-provider`.
+- The project is an Interactive CLI tool to register OpenAI-compatible providers to OpenCode.ai with auto-fetch models from `/v1/models` endpoint.
+- Refer to `mem:tech_stack` for the technologies used.
+- Refer to `mem:suggested_commands` for execution instructions.
+- Refer to `mem:conventions` for code and style guidelines.
+- Refer to `mem:task_completion` for how to verify work.

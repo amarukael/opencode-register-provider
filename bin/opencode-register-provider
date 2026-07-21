@@ -162,9 +162,9 @@ async function loadConfig(configPath) {
       .split('\n')
       .map(line => {
         // Remove single-line comments
-        const commentIdx = line.indexOf('//');
-        if (commentIdx !== -1) {
-          return line.substring(0, commentIdx);
+        const commentIdx = line.match(/(?<!:)\/\//);
+        if (commentIdx) {
+          return line.substring(0, commentIdx.index);
         }
         return line;
       })
