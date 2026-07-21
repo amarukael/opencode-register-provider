@@ -1,0 +1,364 @@
+#!/usr/bin/env node
+
+/**
+ * Interactive OpenAI-Compatible Provider Registration Tool for OpenCode.ai
+ * Auto-fetches models from /v1/models and registers them to OpenCode config
+ */
+
+const readline = require('readline');
+const https = require('https');
+const http = require('http');
+const fs = require('fs').promises;
+const path = require('path');
+const os = require('os');
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+function question(prompt) {
+  return new Promise((resolve) => {
+    rl.question(prompt, resolve);
+  });
+}
+
+function fetchModels(baseUrl, apiKey) {
+  return new Promise((resolve, reject) => {
+    const url = new URL('/v1/models', baseUrl);
+    const isHttps = url.protocol === 'https:';
+    const client = isHttps ? https : http;
+
+    const options = {
+      hostname: url.hostname,
+      port: url.port || (isHttps ? 443 : 80),
+      path: url.pathname,
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    };
+
+    const req = client.request(options, (res) => {
+      let data = '';
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          try {
+            const parsed = JSON.parse(data);
+            resolve(parsed);
+          } catch (err) {
+            reject(new Error(`Failed to parse response: ${err.message}`));
+          }
+        } else {
+          reject(new Error(`HTTP ${res.statusCode}: ${data}`));
+        }
+      });
+    });
+
+    req.on('error', reject);
+    req.setTimeout(10000, () => {
+      req.destroy();
+      reject(new Error('Request timeout'));
+    });
+
+    req.end();
+  });
+}
+
+async function findConfigFile() {
+  // Priority: ./opencode.jsonc > ./opencode.json > ~/.config/opencode/opencode.jsonc > ~/.config/opencode/opencode.json
+  const localJsonc = path.join(process.cwd(), 'opencode.jsonc');
+  const localJson = path.join(process.cwd(), 'opencode.json');
+  const globalJsonc = path.join(os.homedir(), '.config', 'opencode', 'opencode.jsonc');
+  const globalJson = path.join(os.homedir(), '.config', 'opencode', 'opencode.json');
+
+  // Check local directory first (jsonc priority)
+  try {
+    await fs.access(localJsonc);
+    return localJsonc;
+  } catch {}
+
+  try {
+    await fs.access(localJson);
+    return localJson;
+  } catch {}
+
+  // Check global config (jsonc priority)
+  try {
+    await fs.access(globalJsonc);
+    return globalJsonc;
+  } catch {}
+
+  try {
+    await fs.access(globalJson);
+    return globalJson;
+  } catch {}
+
+  // No config found - throw error instead of creating
+  throw new Error(
+    'No OpenCode config file found.\n' +
+    'Please create one of:\n' +
+    '  - ./opencode.jsonc (recommended)\n' +
+    '  - ./opencode.json\n' +
+    '  - ~/.config/opencode/opencode.jsonc\n' +
+    '  - ~/.config/opencode/opencode.json\n\n' +
+    'Or run: opencode init'
+  );
+}
+
+async function loadConfig(configPath) {
+  try {
+    const content = await fs.readFile(configPath, 'utf-8');
+    // Strip comments for JSONC support (basic implementation)
+    const stripped = content
+      .split('\n')
+      .map(line => {
+        // Remove single-line comments
+        const commentIdx = line.indexOf('//');
+        if (commentIdx !== -1) {
+          return line.substring(0, commentIdx);
+        }
+        return line;
+      })
+      .join('\n')
+      // Remove multi-line comments
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    
+    return JSON.parse(stripped);
+  } catch (err) {
+    throw new Error(`Failed to load config from ${configPath}: ${err.message}`);
+  }
+}
+
+async function saveConfig(configPath, config) {
+  await fs.mkdir(path.dirname(configPath), { recursive: true });
+  await fs.writeFile(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+}
+
+async function loadAuthConfig() {
+  const authPath = path.join(os.homedir(), '.local', 'share', 'opencode', 'auth.json');
+  try {
+    const content = await fs.readFile(authPath, 'utf-8');
+    return JSON.parse(content);
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return {};
+    }
+    throw err;
+  }
+}
+
+async function saveAuthConfig(auth) {
+  const authPath = path.join(os.homedir(), '.local', 'share', 'opencode', 'auth.json');
+  await fs.mkdir(path.dirname(authPath), { recursive: true });
+  await fs.writeFile(authPath, JSON.stringify(auth, null, 2) + '\n', 'utf-0');
+}
+
+async function main() {
+  console.log('\n🌟 OpenCode.ai - OpenAI-Compatible Provider Registration\n');
+
+  // Step 1: Provider ID
+  const providerId = await question('Provider ID (lowercase, kebab-case, e.g., "openrouter", "together-ai"): ');
+  if (!providerId || !/^[a-z0-9-]+$/.test(providerId)) {
+    console.error('❌ Invalid provider ID. Use lowercase letters, numbers, and hyphens only.');
+    rl.close();
+    process.exit(1);
+  }
+
+  // Step 2: Provider Display Name
+  const providerName = await question(`Provider display name (default "${providerId}"): `) || providerId;
+
+  // Step 3: Base URL
+  const baseUrl = await question('Base URL (e.g., "https://openrouter.ai/api/v1"): ');
+  if (!baseUrl || !baseUrl.startsWith('http')) {
+    console.error('❌ Invalid base URL. Must start with http:// or https://');
+    rl.close();
+    process.exit(1);
+  }
+
+  // Step 4: API Key
+  const apiKey = await question('API Key: ');
+  if (!apiKey) {
+    console.error('❌ API Key is required.');
+    rl.close();
+    process.exit(1);
+  }
+
+  console.log('\n🔍 Fetching models from provider...\n');
+
+  let modelsResponse;
+  try {
+    modelsResponse = await fetchModels(baseUrl, apiKey);
+  } catch (err) {
+    console.error(`❌ Failed to fetch models: ${err.message}`);
+    rl.close();
+    process.exit(1);
+  }
+
+  if (!modelsResponse.data || !Array.isArray(modelsResponse.data)) {
+    console.error('❌ Unexpected response format. Expected { data: [...] }');
+    console.log('Response:', JSON.stringify(modelsResponse, null, 2));
+    rl.close();
+    process.exit(1);
+  }
+
+  const availableModels = modelsResponse.data;
+  console.log(`✅ Found ${availableModels.length} models\n`);
+
+  if (availableModels.length === 0) {
+    console.error('❌ No models available from this provider.');
+    rl.close();
+    process.exit(1);
+  }
+
+  // Display models with pagination
+  console.log('Available models:');
+  availableModels.forEach((model, idx) => {
+    const modelId = model.id;
+    const modelName = model.name || modelId;
+    console.log(`  [${idx + 1}] ${modelId}${modelName !== modelId ? ` (${modelName})` : ''}`);
+  });
+
+  console.log('\n');
+
+  // Step 5: Select models
+  const selection = await question('Select models (comma-separated numbers, range "1-10", or "all"): ');
+  
+  let selectedModels;
+  if (selection.toLowerCase() === 'all') {
+    selectedModels = availableModels;
+  } else if (selection.includes('-')) {
+    // Range selection: "1-10"
+    const [start, end] = selection.split('-').map(s => parseInt(s.trim()));
+    if (isNaN(start) || isNaN(end) || start < 1 || end > availableModels.length || start > end) {
+      console.error('❌ Invalid range.');
+      rl.close();
+      process.exit(1);
+    }
+    selectedModels = availableModels.slice(start - 1, end);
+  } else {
+    const indices = selection.split(',').map(s => parseInt(s.trim()) - 1);
+    selectedModels = indices
+      .filter(i => i >= 0 && i < availableModels.length)
+      .map(i => availableModels[i]);
+  }
+
+  if (selectedModels.length === 0) {
+    console.error('❌ No models selected.');
+    rl.close();
+    process.exit(1);
+  }
+
+  console.log(`\n📦 Selected ${selectedModels.length} model(s)\n`);
+
+  // Step 6: Configure models for OpenCode
+  const configuredModels = {};
+
+  const bulkConfig = await question('Use same display name format for all? (y/n, default y): ');
+  const useBulk = bulkConfig.toLowerCase() !== 'n';
+
+  for (const model of selectedModels) {
+    const modelId = model.id;
+    
+    if (!useBulk) {
+      console.log(`\n⚙️  Configuring: ${modelId}`);
+      const customName = await question(`  Display name (default "${model.name || modelId}"): `) || model.name || modelId;
+      configuredModels[modelId] = { name: customName };
+    } else {
+      // Use original name or ID
+      configuredModels[modelId] = { name: model.name || modelId };
+    }
+  }
+
+  // Step 7: Build config
+  let configPath;
+  try {
+    configPath = await findConfigFile();
+    console.log(`\n📂 Config file: ${configPath}`);
+  } catch (err) {
+    console.error(`\n❌ ${err.message}`);
+    rl.close();
+    process.exit(1);
+  }
+
+  const config = await loadConfig(configPath);
+
+  if (!config.provider) {
+    config.provider = {};
+  }
+
+  if (config.provider[providerId]) {
+    const overwrite = await question(`\n⚠️  Provider "${providerId}" already exists. Overwrite? (y/n): `);
+    if (overwrite.toLowerCase() !== 'y') {
+      console.log('❌ Cancelled.');
+      rl.close();
+      process.exit(0);
+    }
+  }
+
+  config.provider[providerId] = {
+    npm: "@ai-sdk/openai-compatible",
+    name: providerName,
+    options: {
+      baseURL: baseUrl
+    },
+    models: configuredModels
+  };
+
+  // Step 8: Save credentials
+  const auth = await loadAuthConfig();
+  auth[providerId] = apiKey;
+
+  // Step 9: Preview
+  console.log('\n📝 Configuration to be applied:\n');
+  console.log('opencode.json:');
+  console.log(JSON.stringify({ provider: { [providerId]: config.provider[providerId] } }, null, 2));
+  console.log('\nauth.json:');
+  console.log(JSON.stringify({ [providerId]: '***' + apiKey.slice(-4) }, null, 2));
+  console.log('\n');
+
+  const confirm = await question('Apply this configuration? (y/n): ');
+  if (confirm.toLowerCase() !== 'y') {
+    console.log('❌ Cancelled.');
+    rl.close();
+    process.exit(0);
+  }
+
+  // Step 10: Save
+  console.log('\n🚀 Saving configuration...\n');
+
+  try {
+    await saveConfig(configPath, config);
+    await saveAuthConfig(auth);
+    
+    console.log('✅ Provider registered successfully!\n');
+    
+    console.log('Available models:');
+    Object.keys(configuredModels).forEach(modelId => {
+      console.log(`  ${modelId}`);
+    });
+
+    console.log('\n💡 Next steps:');
+    console.log('1. Run OpenCode in your project directory: opencode');
+    console.log('2. Select a model with: /models');
+    console.log(`3. Look for models from "${providerName}"\n`);
+
+  } catch (err) {
+    console.error(`\n❌ Failed to save config: ${err.message}\n`);
+    process.exit(1);
+  }
+
+  rl.close();
+}
+
+main().catch((err) => {
+  console.error(`\n❌ Error: ${err.message}`);
+  rl.close();
+  process.exit(1);
+});

@@ -1,0 +1,43 @@
+{
+  "name": "opencode-register-provider",
+  "version": "1.0.0",
+  "description": "Interactive CLI tool to register OpenAI-compatible providers to OpenCode.ai with auto-fetch models from /v1/models endpoint",
+  "main": "bin/opencode-register-provider",
+  "bin": {
+    "opencode-register-provider": "./bin/opencode-register-provider"
+  },
+  "scripts": {
+    "test": "node bin/opencode-register-provider --help"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-ai",
+    "openai",
+    "provider",
+    "cli",
+    "models",
+    "interactive",
+    "ai-sdk",
+    "models-dev",
+    "llm",
+    "coding-agent"
+  ],
+  "author": "Fahmi Amaru <me.fahmi@example.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/me-fahmi/opencode-register-provider.git"
+  },
+  "bugs": {
+    "url": "https://github.com/me-fahmi/opencode-register-provider/issues"
+  },
+  "homepage": "https://github.com/me-fahmi/opencode-register-provider#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "files": [
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ]
+}
