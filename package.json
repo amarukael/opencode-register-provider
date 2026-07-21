@@ -4,7 +4,7 @@
   "description": "Interactive CLI tool to register OpenAI-compatible providers to OpenCode.ai with auto-fetch models from /v1/models endpoint",
   "main": "bin/opencode-register-provider",
   "bin": {
-    "opencode-register-provider": "./bin/opencode-register-provider"
+    "opencode-register-provider": "bin/opencode-register-provider"
   },
   "scripts": {
     "test": "node bin/opencode-register-provider --help"
@@ -26,7 +26,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/amarukael/opencode-register-provider.git"
+    "url": "git+https://github.com/amarukael/opencode-register-provider.git"
   },
   "bugs": {
     "url": "https://github.com/amarukael/opencode-register-provider/issues"
