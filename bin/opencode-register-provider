@@ -157,7 +157,7 @@ async function loadAuthConfig() {
 async function saveAuthConfig(auth) {
   const authPath = path.join(os.homedir(), '.local', 'share', 'opencode', 'auth.json');
   await fs.mkdir(path.dirname(authPath), { recursive: true });
-  await fs.writeFile(authPath, JSON.stringify(auth, null, 2) + '\n', 'utf-0');
+  await fs.writeFile(authPath, JSON.stringify(auth, null, 2) + '\n', 'utf-8');
 }
 
 async function main() {
