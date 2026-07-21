@@ -12,6 +12,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-07-21
+
+### Fixed
+- **CRITICAL FIX: Control character removal order** - Now strips control characters BEFORE any processing
+- This fixes the persistent "Bad control character in string literal" error that affected v1.0.2 and v1.0.3
+- Control characters (tabs, null bytes, etc.) are now removed immediately after reading the file
+- Improved error message formatting with better readability
+
+### Changed
+- Reordered `loadConfig()` processing: BOM removal → control char removal → comment stripping → parsing
+- Enhanced error suggestions with more detailed instructions
+
 ## [1.0.3] - 2026-07-21
 
 ### Fixed

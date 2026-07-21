@@ -12,7 +12,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
 
-const VERSION = '1.0.3';
+const VERSION = '1.0.4';
 
 // Handle CLI flags
 if (process.argv.includes('--version') || process.argv.includes('-v')) {
@@ -153,7 +153,11 @@ async function loadConfig(configPath) {
       content = content.substring(1);
     }
     
-    // Strip comments for JSONC support (basic implementation)
+    // CRITICAL FIX: Remove control characters FIRST, before any processing
+    // This includes tabs, null bytes, and other problematic characters
+    content = content.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    
+    // Strip comments for JSONC support
     const stripped = content
       .split('\n')
       .map(line => {
@@ -168,9 +172,7 @@ async function loadConfig(configPath) {
       // Remove multi-line comments
       .replace(/\/\*[\s\S]*?\*\//g, '')
       // Fix trailing commas (JSONC support)
-      .replace(/,\s*([}\]])/g, '$1')
-      // Remove control characters (except newline, tab, carriage return)
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+      .replace(/,\s*([}\]])/g, '$1');
     
     return JSON.parse(stripped);
   } catch (err) {
@@ -180,10 +182,13 @@ async function loadConfig(configPath) {
       console.error(`\n❌ Config file is corrupted or has invalid JSON syntax.`);
       console.error(`   Original error: ${err.message}`);
       console.error(`\n💡 Suggestions:`);
-      console.error(`   1. Backup corrupt file: cp "${configPath}" "${backupPath}"`);
-      console.error(`   2. Delete corrupt file: rm "${configPath}"`);
-      console.error(`   3. Run this tool again to create fresh config`);
-      console.error(`\n   Or manually fix the syntax errors in: ${configPath}\n`);
+      console.error(`   1. Backup corrupt file:`);
+      console.error(`      cp "${configPath}" "${backupPath}"`);
+      console.error(`   2. Delete corrupt file and let tool create fresh config:`);
+      console.error(`      rm "${configPath}"`);
+      console.error(`      opencode-register-provider`);
+      console.error(`   3. Or manually inspect with hex editor to find hidden characters`);
+      console.error(`\n   File location: ${configPath}\n`);
       throw new Error('Config file is corrupted. See suggestions above.');
     }
     throw new Error(`Failed to load config from ${configPath}: ${err.message}`);
