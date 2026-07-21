@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.3] - 2026-07-21
+
+### Fixed
+- **Robust JSONC parser** - Better handling of corrupt config files
+- **BOM detection** - Automatically remove Byte Order Mark if present
+- **Control character removal** - Strip invalid control characters from config
+- **Better error messages** - Helpful suggestions when config is corrupted
+- **Auto-backup suggestion** - Guides user to backup corrupt file before fix
+
+### Changed
+- Enhanced `loadConfig()` with better error handling and diagnostics
+- Improved error messages with actionable suggestions
+
 ## [1.0.2] - 2026-07-21
 
 ### Added
