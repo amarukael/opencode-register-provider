@@ -1,6 +1,6 @@
 {
   "name": "opencode-register-provider",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Interactive CLI tool to register OpenAI-compatible providers to OpenCode.ai with auto-fetch models from /v1/models endpoint",
   "main": "bin/opencode-register-provider",
   "bin": {

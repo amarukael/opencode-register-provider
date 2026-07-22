@@ -10,8 +10,8 @@
 - 🎯 **Interactive prompts** - guided setup for provider configuration
 - 🔍 **Auto-fetch models** - automatically fetch model list from `/v1/models` endpoint
 - ✅ **Flexible selection** - select specific models, ranges, or all
-- 📦 **Auto-configure** - generates `opencode.jsonc` and `auth.json` automatically
-- 🔐 **Secure credentials** - API keys stored separately in `~/.local/share/opencode/auth.json`
+- 📦 **Auto-configure** - generates `opencode.jsonc` automatically
+- 🔐 **Configuration** - API keys are stored in `opencode.jsonc` configuration file
 - 🚀 **Zero manual editing** - no need to touch config files manually
 
 ## Installation
@@ -119,16 +119,6 @@ This tool generates configuration following the [OpenCode.ai provider specificat
 }
 ```
 
-### auth.json (Credentials Store)
-
-Location: `~/.local/share/opencode/auth.json`
-
-```json
-{
-  "custom-provider-id": "sk-xxx…"
-}
-```
-
 ## Compatible Providers
 
 This tool is compatible with **any provider following the OpenAI API specification** that provides a `/v1/models` endpoint:
@@ -205,16 +195,12 @@ in your project directory to create one.
 
 **Solutions:**
 - Verify config saved correctly: `cat opencode.jsonc`
-- Verify auth saved: `cat ~/.local/share/opencode/auth.json`
 - Restart OpenCode terminal
 - Run `/models` command in OpenCode TUI
 
 ## Security Notes
 
-- ✅ API keys stored in `~/.local/share/opencode/auth.json` with permission 600 (user-only)
-- ✅ Tool **DOES NOT** store API keys in `opencode.jsonc` config file
-- ✅ Credentials separated from config, safe to commit `opencode.jsonc` to git
-- ⚠️ **Do not commit** `auth.json` - it's already in `~/.local/share`, not in project directory
+- ⚠️ **Do not commit** `opencode.jsonc` - it now contains your API keys directly. Ensure it is added to your `.gitignore`.
 
 ## Examples: Popular Providers
 
