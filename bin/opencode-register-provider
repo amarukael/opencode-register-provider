@@ -200,25 +200,6 @@ async function saveConfig(configPath, config) {
   await fs.writeFile(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
 }
 
-async function loadAuthConfig() {
-  const authPath = path.join(os.homedir(), '.local', 'share', 'opencode', 'auth.json');
-  try {
-    const content = await fs.readFile(authPath, 'utf-8');
-    return JSON.parse(content);
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      return {};
-    }
-    throw err;
-  }
-}
-
-async function saveAuthConfig(auth) {
-  const authPath = path.join(os.homedir(), '.local', 'share', 'opencode', 'auth.json');
-  await fs.mkdir(path.dirname(authPath), { recursive: true });
-  await fs.writeFile(authPath, JSON.stringify(auth, null, 2) + '\n', 'utf-8');
-}
-
 async function main() {
   console.log('\n🌟 OpenCode.ai - OpenAI-Compatible Provider Registration\n');
 
@@ -230,23 +211,72 @@ async function main() {
     process.exit(1);
   }
 
-  // Step 2: Provider Display Name
-  const providerName = await question(`Provider display name (default "${providerId}"): `) || providerId;
-
-  // Step 3: Base URL
-  const baseUrl = await question('Base URL (e.g., "https://openrouter.ai/api/v1"): ');
-  if (!baseUrl || !baseUrl.startsWith('http')) {
-    console.error('❌ Invalid base URL. Must start with http:// or https://');
+  // Load config early to check for existing provider
+  let configPath;
+  try {
+    configPath = await findConfigFile();
+  } catch (err) {
+    console.error(`\n❌ ${err.message}`);
     rl.close();
     process.exit(1);
   }
 
-  // Step 4: API Key
-  const apiKey = await question('API Key: ');
-  if (!apiKey) {
-    console.error('❌ API Key is required.');
-    rl.close();
-    process.exit(1);
+  const config = await loadConfig(configPath);
+  if (!config.provider) {
+    config.provider = {};
+  }
+
+  let isAppend = false;
+  let providerName;
+  let baseUrl;
+  let apiKey;
+
+  const existingProvider = config.provider[providerId];
+
+  if (existingProvider) {
+    const action = await question(`\n⚠️  Provider "${providerId}" already exists. [O]verwrite, [A]ppend, or [C]ancel? (o/a/c, default c): `);
+    const act = action.toLowerCase();
+    
+    if (act === 'a') {
+      isAppend = true;
+      providerName = existingProvider.name || providerId;
+      baseUrl = existingProvider.options?.baseURL;
+      apiKey = existingProvider.options?.apiKey;
+
+      if (!baseUrl || !apiKey) {
+        console.error('❌ Cannot append: missing base URL or API key in existing config.');
+        rl.close();
+        process.exit(1);
+      }
+      console.log(`\n🔄 Appending to existing provider "${providerId}"...`);
+    } else if (act === 'o') {
+      console.log(`\n🔄 Overwriting existing provider "${providerId}"...`);
+    } else {
+      console.log('❌ Cancelled.');
+      rl.close();
+      process.exit(0);
+    }
+  }
+
+  if (!isAppend) {
+    // Step 2: Provider Display Name
+    providerName = await question(`Provider display name (default "${providerId}"): `) || providerId;
+
+    // Step 3: Base URL
+    baseUrl = await question('Base URL (e.g., "https://openrouter.ai/api/v1"): ');
+    if (!baseUrl || !baseUrl.startsWith('http')) {
+      console.error('❌ Invalid base URL. Must start with http:// or https://');
+      rl.close();
+      process.exit(1);
+    }
+
+    // Step 4: API Key
+    apiKey = await question('API Key: ');
+    if (!apiKey) {
+      console.error('❌ API Key is required.');
+      rl.close();
+      process.exit(1);
+    }
   }
 
   console.log('\n🔍 Fetching models from provider...\n');
@@ -267,8 +297,22 @@ async function main() {
     process.exit(1);
   }
 
-  const availableModels = modelsResponse.data;
-  console.log(`✅ Found ${availableModels.length} models\n`);
+  let availableModels = modelsResponse.data;
+
+  // Filter existing models if appending
+  if (isAppend && existingProvider.models) {
+    const existingModelIds = Object.keys(existingProvider.models);
+    availableModels = availableModels.filter(m => !existingModelIds.includes(m.id));
+    
+    if (availableModels.length === 0) {
+      console.log('✅ All available models from this provider are already registered.');
+      rl.close();
+      process.exit(0);
+    }
+    console.log(`✅ Found ${availableModels.length} NEW models (skipped ${modelsResponse.data.length - availableModels.length} already registered)\n`);
+  } else {
+    console.log(`✅ Found ${availableModels.length} models\n`);
+  }
 
   if (availableModels.length === 0) {
     console.error('❌ No models available from this provider.');
@@ -336,50 +380,34 @@ async function main() {
   }
 
   // Step 7: Build config
-  let configPath;
-  try {
-    configPath = await findConfigFile();
-    console.log(`\n📂 Config file: ${configPath}`);
-  } catch (err) {
-    console.error(`\n❌ ${err.message}`);
-    rl.close();
-    process.exit(1);
+  console.log(`\n📂 Config file: ${configPath}`);
+
+  if (isAppend) {
+    config.provider[providerId].models = {
+      ...existingProvider.models,
+      ...configuredModels
+    };
+  } else {
+    config.provider[providerId] = {
+      npm: "@ai-sdk/openai-compatible",
+      name: providerName,
+      options: {
+        baseURL: baseUrl,
+        apiKey: apiKey
+      },
+      models: configuredModels
+    };
   }
 
-  const config = await loadConfig(configPath);
-
-  if (!config.provider) {
-    config.provider = {};
-  }
-
-  if (config.provider[providerId]) {
-    const overwrite = await question(`\n⚠️  Provider "${providerId}" already exists. Overwrite? (y/n): `);
-    if (overwrite.toLowerCase() !== 'y') {
-      console.log('❌ Cancelled.');
-      rl.close();
-      process.exit(0);
-    }
-  }
-
-  config.provider[providerId] = {
-    npm: "@ai-sdk/openai-compatible",
-    name: providerName,
-    options: {
-      baseURL: baseUrl
-    },
-    models: configuredModels
-  };
-
-  // Step 8: Save credentials
-  const auth = await loadAuthConfig();
-  auth[providerId] = apiKey;
-
-  // Step 9: Preview
+  // Step 8: Preview
   console.log('\n📝 Configuration to be applied:\n');
+  const previewConfig = JSON.parse(JSON.stringify(config.provider[providerId]));
+  if (previewConfig.options && previewConfig.options.apiKey) {
+    previewConfig.options.apiKey = '***' + previewConfig.options.apiKey.slice(-4);
+  }
+  
   console.log('opencode.json:');
-  console.log(JSON.stringify({ provider: { [providerId]: config.provider[providerId] } }, null, 2));
-  console.log('\nauth.json:');
-  console.log(JSON.stringify({ [providerId]: '***' + apiKey.slice(-4) }, null, 2));
+  console.log(JSON.stringify({ provider: { [providerId]: previewConfig } }, null, 2));
   console.log('\n');
 
   const confirm = await question('Apply this configuration? (y/n): ');
@@ -389,16 +417,15 @@ async function main() {
     process.exit(0);
   }
 
-  // Step 10: Save
+  // Step 9: Save
   console.log('\n🚀 Saving configuration...\n');
 
   try {
     await saveConfig(configPath, config);
-    await saveAuthConfig(auth);
     
     console.log('✅ Provider registered successfully!\n');
     
-    console.log('Available models:');
+    console.log(isAppend ? 'Newly added models:' : 'Available models:');
     Object.keys(configuredModels).forEach(modelId => {
       console.log(`  ${modelId}`);
     });
